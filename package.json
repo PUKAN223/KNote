@@ -10,9 +10,20 @@
     "format": "biome format --write"
   },
   "dependencies": {
+    "@use-gesture/react": "^10.3.1",
+    "clsx": "^2.1.1",
+    "dexie": "^4.4.3",
+    "dexie-react-hooks": "^4.4.0",
+    "framer-motion": "^12.40.0",
+    "lucide-react": "^1.17.0",
     "next": "16.2.6",
+    "next-pwa": "^5.6.0",
+    "perfect-freehand": "^1.2.3",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.6.0",
+    "uuid": "^14.0.0",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",
@@ -20,6 +31,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "babel-plugin-react-compiler": "1.0.0",
     "tailwindcss": "^4",
     "typescript": "^5"

@@ -1,26 +1,152 @@
 @import "tailwindcss";
 
+@theme {
+  --color-knote-bg: #faf8f3;
+  --color-knote-surface: #ffffff;
+  --color-knote-border: #ece7dd;
+  --color-knote-primary: #7c6a46;
+  --color-knote-primary-light: #a08b64;
+  --color-knote-text: #2d2d2d;
+  --color-knote-success: #6b8e6e;
+  --color-knote-danger: #b56a6a;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf8f3;
+  --foreground: #2d2d2d;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+/* Smooth transitions */
+.notebook-card {
+  transition:
+    transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.notebook-card:active {
+  transform: scale(0.97);
+}
+
+/* Glassmorphism toolbar */
+.glass {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Page transition */
+.page-enter {
+  animation: pageIn 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.library-tile-motion {
+  transform: translate3d(0, 0, 0);
+}
+
+@media (hover: hover) {
+  .library-tile-motion:hover {
+    transform: translate3d(0, -3px, 0);
+  }
+}
+
+.library-drag-preview {
+  animation: libraryDragLift 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  filter: saturate(1.04) drop-shadow(0 12px 24px rgba(0, 0, 0, 0.26)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.16));
+  transform-origin: center;
+}
+
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes libraryDragLift {
+  from {
+    opacity: 0.72;
+    transform: translate(-50%, -50%) scale(0.94) rotate(-1deg);
+  }
+  to {
+    opacity: 0.96;
+    transform: translate(-50%, -50%) scale(1.03) rotate(-1deg);
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+/* Context-menu pop-in */
+.context-menu-enter {
+  animation: contextMenuIn 0.16s cubic-bezier(0.2, 0.8, 0.2, 1.05) both;
+  transform-origin: top right;
+}
+
+@keyframes contextMenuIn {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Dialog entrance */
+.dialog-enter {
+  animation: dialogIn 0.22s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+@keyframes dialogIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
