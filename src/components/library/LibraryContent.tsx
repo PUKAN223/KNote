@@ -3,6 +3,7 @@
 import {
   BookOpen,
   ChevronRight,
+  FileText,
   Folder as FolderIcon,
   Menu,
   Moon,
@@ -50,6 +51,7 @@ export function LibraryContent({
   onCreateQuickNote,
   onDeleteFolder,
   onDeleteNotebook,
+  onImportPdf,
   onFolderColor,
   onFolderIcon,
   onMoveFolder,
@@ -92,6 +94,7 @@ export function LibraryContent({
   onCreateQuickNote: () => void | Promise<void>;
   onDeleteFolder: (folder: Folder) => void | Promise<void>;
   onDeleteNotebook: (notebookId: string) => void | Promise<void>;
+  onImportPdf: () => void;
   onFolderColor: (folderId: string, color: string) => void | Promise<void>;
   onFolderIcon: (folderId: string, icon: string) => void | Promise<void>;
   onMoveFolder: (
@@ -272,6 +275,7 @@ export function LibraryContent({
             darkMode={darkMode}
             open={newMenuOpen}
             onCreateQuickNote={onCreateQuickNote}
+            onImportPdf={onImportPdf}
             onNewFolder={onNewFolder}
             onNewNotebook={onNewNotebook}
             onSetOpen={onSetNewMenuOpen}
@@ -348,6 +352,7 @@ function NewTile({
   darkMode,
   open,
   onCreateQuickNote,
+  onImportPdf,
   onNewFolder,
   onNewNotebook,
   onSetOpen,
@@ -355,6 +360,7 @@ function NewTile({
   darkMode: boolean;
   open: boolean;
   onCreateQuickNote: () => void | Promise<void>;
+  onImportPdf: () => void;
   onNewFolder: () => void;
   onNewNotebook: () => void;
   onSetOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -386,13 +392,21 @@ function NewTile({
             />
             <div
               className={cn(
-                "absolute left-1/2 top-full z-40 mt-2 w-52 -translate-x-1/2 overflow-hidden rounded-[18px] border shadow-xl",
+                "absolute left-1/2 top-full z-40 mt-2 w-56 -translate-x-1/2 overflow-hidden rounded-[18px] border",
                 darkMode
                   ? "border-[#393226] bg-[#211f1a] text-[#f4efe7]"
                   : "border-[#e6dfd3] bg-[#fffdf9] text-knote-text",
               )}
             >
               <div className="p-1.5">
+                <p
+                  className={cn(
+                    "px-3 pb-1.5 pt-2 text-[11px] font-semibold uppercase tracking-[0.14em]",
+                    darkMode ? "text-[#f4efe7]/38" : "text-black/36",
+                  )}
+                >
+                  Create
+                </p>
                 <NewMenuButton
                   darkMode={darkMode}
                   icon={<BookOpen size={16} />}
@@ -411,6 +425,20 @@ function NewTile({
                     onNewFolder();
                   }}
                 />
+                <div
+                  className={cn(
+                    "my-1 h-px",
+                    darkMode ? "bg-white/10" : "bg-black/8",
+                  )}
+                />
+                <p
+                  className={cn(
+                    "px-3 pb-1.5 pt-2 text-[11px] font-semibold uppercase tracking-[0.14em]",
+                    darkMode ? "text-[#f4efe7]/38" : "text-black/36",
+                  )}
+                >
+                  Quick
+                </p>
                 <NewMenuButton
                   darkMode={darkMode}
                   icon={<PenLine size={16} />}
@@ -418,6 +446,15 @@ function NewTile({
                   onClick={() => {
                     onSetOpen(false);
                     onCreateQuickNote();
+                  }}
+                />
+                <NewMenuButton
+                  darkMode={darkMode}
+                  icon={<FileText size={16} />}
+                  label="Import PDF"
+                  onClick={() => {
+                    onSetOpen(false);
+                    onImportPdf();
                   }}
                 />
               </div>
@@ -638,6 +675,8 @@ function NotebookTile({
   onToggleFavoriteNotebook: (notebookId: string) => void;
   shouldIgnoreTap: () => boolean;
 }) {
+  const isPdf = notebook.kind === "pdf";
+
   return (
     <div className="group relative text-center">
       <button
@@ -664,8 +703,17 @@ function NotebookTile({
         <span className="absolute inset-x-3.5 top-4 h-px bg-white/20" />
         <span className="absolute inset-x-3.5 top-7 h-px bg-white/14" />
         <span className="absolute inset-0 flex items-center justify-center text-white/88">
-          <BookOpen size={33} strokeWidth={1.6} />
+          {isPdf ? (
+            <FileText size={33} strokeWidth={1.6} />
+          ) : (
+            <BookOpen size={33} strokeWidth={1.6} />
+          )}
         </span>
+        {isPdf && (
+          <span className="absolute bottom-2 right-2 rounded-[5px] bg-white/18 px-1.5 py-0.5 text-[9px] font-bold text-white/88">
+            PDF
+          </span>
+        )}
       </button>
       <button
         type="button"

@@ -390,6 +390,7 @@ function MoveSelect({
           <MoveTargetButton
             key={folder.id}
             darkMode={darkMode}
+            folder={folder}
             onClick={() => onMove(folder.id)}
           >
             {folder.name}
@@ -458,13 +459,17 @@ function ActionDisclosure({
 
 function MoveTargetButton({
   darkMode,
+  folder,
   children,
   onClick,
 }: {
   darkMode: boolean;
+  folder?: Folder;
   children: React.ReactNode;
   onClick: () => void;
 }) {
+  const Icon = folder ? getFolderIcon(folder.icon) : FolderIcon;
+
   return (
     <button
       type="button"
@@ -476,7 +481,16 @@ function MoveTargetButton({
           : "text-knote-text/78 hover:bg-[#f3eee5]",
       )}
     >
-      <FolderIcon size={14} className="text-[var(--library-label)]" />
+      {folder ? (
+        <span
+          className="relative flex h-6 w-7 shrink-0 items-center justify-center rounded-[6px] text-white before:absolute before:-top-0.5 before:left-1 before:h-1.5 before:w-3.5 before:rounded-t-[4px] before:bg-white/22"
+          style={{ backgroundColor: folder.color }}
+        >
+          <Icon size={13} strokeWidth={1.8} />
+        </span>
+      ) : (
+        <Icon size={14} className="text-[var(--library-label)]" />
+      )}
       <span className="truncate">{children}</span>
     </button>
   );

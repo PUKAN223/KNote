@@ -1,5 +1,45 @@
 import type { Folder } from "../../types";
 
+export type FolderTreeRow = Folder & { depth: number };
+
+export function getFolderTreeRows(folders: Folder[]): FolderTreeRow[] {
+  const rows: FolderTreeRow[] = [];
+  const visited = new Set<string>();
+
+  const childrenByParent = new Map<string, Folder[]>();
+  for (const folder of folders) {
+    const parentKey = folder.parentId ?? "root";
+    childrenByParent.set(parentKey, [
+      ...(childrenByParent.get(parentKey) ?? []),
+      folder,
+    ]);
+  }
+
+  for (const children of childrenByParent.values()) {
+    children.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  const appendChildren = (parentId: string, depth: number) => {
+    for (const folder of childrenByParent.get(parentId) ?? []) {
+      if (visited.has(folder.id)) continue;
+      visited.add(folder.id);
+      rows.push({ ...folder, depth });
+      appendChildren(folder.id, depth + 1);
+    }
+  };
+
+  appendChildren("root", 0);
+
+  for (const folder of folders) {
+    if (visited.has(folder.id)) continue;
+    visited.add(folder.id);
+    rows.push({ ...folder, depth: 0 });
+    appendChildren(folder.id, 1);
+  }
+
+  return rows;
+}
+
 export function isDescendant(
   folders: Folder[],
   folderId: string,

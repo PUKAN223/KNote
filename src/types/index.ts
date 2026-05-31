@@ -13,6 +13,9 @@ export type Notebook = {
   name: string;
   color: string;
   folderId: string | null;
+  kind?: "notebook" | "pdf";
+  pdfDataUrl?: string;
+  pdfFileName?: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -21,6 +24,9 @@ export type Page = {
   id: string;
   notebookId: string;
   order: number;
+  width?: number;
+  height?: number;
+  backgroundImage?: string;
   createdAt: number;
 };
 
@@ -32,6 +38,7 @@ export type Stroke = {
   width: number;
   opacity: number;
   points: Point[];
+  createdAt?: number;
 };
 
 export type Point = {
@@ -40,11 +47,21 @@ export type Point = {
   pressure: number;
 };
 
-export type Tool = "pen" | "pencil" | "highlighter" | "eraser";
+export type Tool =
+  | "pen"
+  | "pencil"
+  | "brush"
+  | "marker"
+  | "highlighter"
+  | "shape"
+  | "eraser"
+  | "selection";
 
 export type RedoStrokesByPage = Record<string, Stroke[]>;
 
 export type FolderIconName = string;
+
+export type SelectionMode = "rectangle" | "free";
 
 // Notebook cover color presets
 export const NOTEBOOK_COLORS = [

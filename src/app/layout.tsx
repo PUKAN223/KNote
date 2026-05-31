@@ -7,6 +7,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "KNote",
   description: "Premium note-taking experience for iPad",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -41,6 +45,7 @@ export default function RootLayout({
       <head>
         {/* Runs synchronously before first paint — prevents theme flash on reload */}
         <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: Theme must be applied before first paint to avoid a visible flash.
           dangerouslySetInnerHTML={{
             __html: `
               try {

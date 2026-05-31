@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChevronRight,
   Folder as FolderIcon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -8,12 +9,11 @@ import {
   Star,
   User,
 } from "lucide-react";
+import { cloneElement, type ReactElement, useMemo, useState } from "react";
 import { cn } from "../../lib/utils";
 import type { Folder, Notebook } from "../../types";
 import { getFolderIcon } from "./icons";
-import { getFolderItemCount } from "./utils";
-
-type FolderRow = Folder & { depth: number };
+import { type FolderTreeRow, getFolderItemCount } from "./utils";
 
 export function LibrarySidebar({
   activeFolderId,
@@ -38,7 +38,7 @@ export function LibrarySidebar({
   dropFolderId: string | null;
   favoriteFolders: Folder[];
   favoriteNotebooks: Notebook[];
-  folderRows: FolderRow[];
+  folderRows: FolderTreeRow[];
   searchTerm: string;
   sidebarMinimized: boolean;
   onNavigateFolder: (folderId: string | null) => void;
@@ -46,6 +46,41 @@ export function LibrarySidebar({
   onSearchChange: (value: string) => void;
   onToggleMinimized: () => void;
 }) {
+  const [collapsedFolderIds, setCollapsedFolderIds] = useState<string[]>([]);
+  const childFolderIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const folder of allFolders) {
+      if (folder.parentId) ids.add(folder.parentId);
+    }
+    return ids;
+  }, [allFolders]);
+  const visibleFolderRows = useMemo(() => {
+    if (sidebarMinimized) {
+      return folderRows.filter((folder) => folder.depth === 0);
+    }
+
+    const collapsed = new Set(collapsedFolderIds);
+    const folderById = new Map(allFolders.map((folder) => [folder.id, folder]));
+
+    return folderRows.filter((folder) => {
+      let currentParentId = folder.parentId;
+
+      while (currentParentId) {
+        if (collapsed.has(currentParentId)) return false;
+        currentParentId = folderById.get(currentParentId)?.parentId ?? null;
+      }
+
+      return true;
+    });
+  }, [allFolders, collapsedFolderIds, folderRows, sidebarMinimized]);
+  const toggleFolderCollapsed = (folderId: string) => {
+    setCollapsedFolderIds((ids) =>
+      ids.includes(folderId)
+        ? ids.filter((id) => id !== folderId)
+        : [...ids, folderId],
+    );
+  };
+
   return (
     <aside
       className={cn(
@@ -162,18 +197,17 @@ export function LibrarySidebar({
           </p>
         )}
         <div className="space-y-1">
-          {folderRows.map((folder) => {
+          {visibleFolderRows.map((folder) => {
             const Icon = getFolderIcon(folder.icon);
+            const hasChildren = childFolderIds.has(folder.id);
+            const collapsed = collapsedFolderIds.includes(folder.id);
 
             return (
-              <button
-                type="button"
+              <div
                 key={folder.id}
-                data-folder-drop={folder.id}
-                onClick={() => onNavigateFolder(folder.id)}
                 className={cn(
-                  "flex h-10 w-full items-center rounded-[12px] text-left text-sm font-medium transition-[background-color,transform,opacity] duration-200 active:scale-[0.98]",
-                  sidebarMinimized ? "justify-center px-0" : "gap-2 px-2",
+                  "library-list-row flex h-10 w-full items-center rounded-[12px] transition-[background-color,transform,opacity] duration-200",
+                  sidebarMinimized && "justify-center",
                   dropFolderId === folder.id
                     ? darkMode
                       ? "bg-[#332d22]"
@@ -192,28 +226,62 @@ export function LibrarySidebar({
                     : `${8 + folder.depth * 16}px`,
                 }}
               >
-                <span
-                  className="relative flex h-6 w-7 shrink-0 items-center justify-center rounded-[6px] text-white before:absolute before:-top-0.5 before:left-1 before:h-1.5 before:w-3.5 before:rounded-t-[4px] before:bg-white/22"
-                  style={{ backgroundColor: folder.color }}
-                >
-                  <Icon size={13} strokeWidth={1.8} />
-                </span>
                 {!sidebarMinimized && (
-                  <>
-                    <span className="truncate">{folder.name}</span>
-                    <span
+                  <button
+                    type="button"
+                    aria-label={
+                      collapsed
+                        ? `Expand ${folder.name}`
+                        : `Collapse ${folder.name}`
+                    }
+                    disabled={!hasChildren}
+                    onClick={() => toggleFolderCollapsed(folder.id)}
+                    className={cn(
+                      "mr-0.5 flex h-7 w-5 shrink-0 items-center justify-center rounded-md transition-[background-color,transform,opacity]",
+                      hasChildren ? "opacity-100" : "opacity-0",
+                      darkMode ? "hover:bg-white/8" : "hover:bg-black/5",
+                    )}
+                  >
+                    <ChevronRight
+                      size={14}
                       className={cn(
-                        "ml-auto rounded-full px-2 py-0.5 text-[11px]",
-                        darkMode
-                          ? "bg-white/8 text-[#f4efe7]/38"
-                          : "bg-black/[0.04] text-black/35",
+                        "transition-transform duration-200",
+                        !collapsed && "rotate-90",
                       )}
-                    >
-                      {getFolderItemCount(allFolders, allNotebooks, folder.id)}
-                    </span>
-                  </>
+                    />
+                  </button>
                 )}
-              </button>
+                <button
+                  type="button"
+                  data-folder-drop={folder.id}
+                  onClick={() => onNavigateFolder(folder.id)}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center text-left text-sm font-medium transition-transform duration-200 active:scale-[0.98]",
+                    sidebarMinimized ? "justify-center px-0" : "gap-2 pr-2",
+                  )}
+                >
+                  <SidebarFolderIcon color={folder.color} icon={<Icon />} />
+                  {!sidebarMinimized && (
+                    <>
+                      <span className="truncate">{folder.name}</span>
+                      <span
+                        className={cn(
+                          "ml-auto rounded-full px-2 py-0.5 text-[11px]",
+                          darkMode
+                            ? "bg-white/8 text-[#f4efe7]/38"
+                            : "bg-black/[0.04] text-black/35",
+                        )}
+                      >
+                        {getFolderItemCount(
+                          allFolders,
+                          allNotebooks,
+                          folder.id,
+                        )}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
             );
           })}
         </div>
@@ -245,16 +313,13 @@ export function LibrarySidebar({
                     key={folder.id}
                     onClick={() => onNavigateFolder(folder.id)}
                     className={cn(
-                      "flex h-10 w-full items-center gap-3 rounded-[10px] px-3 text-left text-sm font-medium transition-[background-color,transform] duration-200 active:scale-[0.98]",
+                      "library-list-row flex h-10 w-full items-center gap-3 rounded-[10px] px-3 text-left text-sm font-medium transition-[background-color,transform,opacity] duration-200 active:scale-[0.98]",
                       darkMode
                         ? "text-[#f4efe7]/70 hover:bg-white/8"
                         : "text-black/62 hover:bg-white/52",
                     )}
                   >
-                    <FolderIcon
-                      size={16}
-                      className="text-[var(--library-label)]"
-                    />
+                    <Star size={16} className="fill-current text-[#c58a1c]" />
                     <span className="truncate">{folder.name}</span>
                   </button>
                 ))}
@@ -264,7 +329,7 @@ export function LibrarySidebar({
                     key={notebook.id}
                     onClick={() => onOpenNotebook(notebook.id)}
                     className={cn(
-                      "flex h-10 w-full items-center gap-3 rounded-[10px] px-3 text-left text-sm font-medium transition-[background-color,transform] duration-200 active:scale-[0.98]",
+                      "library-list-row flex h-10 w-full items-center gap-3 rounded-[10px] px-3 text-left text-sm font-medium transition-[background-color,transform,opacity] duration-200 active:scale-[0.98]",
                       darkMode
                         ? "text-[#f4efe7]/70 hover:bg-white/8"
                         : "text-black/62 hover:bg-white/52",
@@ -311,5 +376,32 @@ export function LibrarySidebar({
         )}
       </div>
     </aside>
+  );
+}
+
+function SidebarFolderIcon({
+  color,
+  icon,
+}: {
+  color: string;
+  icon: ReactElement<{ size?: number; strokeWidth?: number }>;
+}) {
+  return (
+    <span className="relative h-7 w-8 shrink-0">
+      <span className="absolute inset-x-0 bottom-0 top-1 rounded-[6px]">
+        <span
+          className="absolute -top-1 left-1 h-2 w-[48%] rounded-t-[4px]"
+          style={{ backgroundColor: color }}
+        />
+        <span
+          className="absolute inset-0 rounded-[6px]"
+          style={{ backgroundColor: color }}
+        />
+        <span className="absolute inset-x-0 top-0 h-1/2 rounded-t-[6px] bg-white/16" />
+      </span>
+      <span className="absolute inset-x-0 bottom-0 top-1 flex items-center justify-center text-white/88">
+        {cloneElement(icon, { size: 13, strokeWidth: 1.65 })}
+      </span>
+    </span>
   );
 }

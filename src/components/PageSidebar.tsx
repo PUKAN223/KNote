@@ -7,7 +7,7 @@ import { db } from "../db";
 import { cn } from "../lib/utils";
 import { useAppStore } from "../stores/useAppStore";
 
-export function PageSidebar() {
+export function PageSidebar({ darkMode = false }: { darkMode?: boolean }) {
   const activeNotebookId = useAppStore((state) => state.activeNotebookId);
   const activePageId = useAppStore((state) => state.activePageId);
   const setActivePageId = useAppStore((state) => state.setActivePageId);
@@ -20,11 +20,6 @@ export function PageSidebar() {
         : [],
     [activeNotebookId],
   );
-
-  const strokes = useLiveQuery(
-    () => (activeNotebookId ? db.strokes.toArray() : []),
-    [activeNotebookId],
-  ); // For thumbnail preview if we wanted to render tiny SVGs, but for now we'll just show page numbers.
 
   const handleAddPage = async () => {
     if (!activeNotebookId || !pages) return;
@@ -54,14 +49,33 @@ export function PageSidebar() {
   if (!sidebarOpen) return null;
 
   return (
-    <div className="w-64 shrink-0 h-full bg-knote-surface border-r border-knote-border/60 flex flex-col shadow-sm z-20 transition-all duration-300">
-      <div className="h-11 flex items-center justify-between px-4 border-b border-knote-border/40 shrink-0">
-        <span className="text-sm font-semibold tracking-wide text-knote-text/70 uppercase">
+    <div
+      className={`w-64 shrink-0 h-full border-r flex flex-col z-20 transition-all duration-300 ${
+        darkMode
+          ? "border-[#343025] bg-[#201e19]"
+          : "border-knote-border/60 bg-knote-surface"
+      }`}
+    >
+      <div
+        className={`h-11 flex items-center justify-between px-4 border-b shrink-0 ${
+          darkMode ? "border-[#343025]" : "border-knote-border/40"
+        }`}
+      >
+        <span
+          className={`text-sm font-semibold tracking-wide uppercase ${
+            darkMode ? "text-[#f4efe7]/65" : "text-knote-text/70"
+          }`}
+        >
           Pages
         </span>
         <button
+          type="button"
           onClick={handleAddPage}
-          className="p-1.5 text-knote-primary hover:bg-black/5 rounded-lg transition-colors"
+          className={`p-1.5 rounded-lg transition-colors ${
+            darkMode
+              ? "text-[#d9cbb8] hover:bg-white/8"
+              : "text-knote-primary hover:bg-black/5"
+          }`}
           title="Add Page"
         >
           <Plus size={18} strokeWidth={2.5} />
@@ -72,23 +86,46 @@ export function PageSidebar() {
         {pages?.map((page, index) => (
           <div key={page.id} className="relative group">
             <button
+              type="button"
               onClick={() => setActivePageId(page.id)}
               className={cn(
                 "w-full aspect-[3/4] rounded-xl border-2 flex flex-col overflow-hidden transition-all duration-200",
                 activePageId === page.id
-                  ? "border-knote-primary shadow-md ring-4 ring-knote-primary/10"
-                  : "border-knote-border/50 hover:border-knote-border hover:shadow-sm",
+                  ? darkMode
+                    ? "border-[#d9cbb8] ring-4 ring-[#d9cbb8]/12"
+                    : "border-knote-primary ring-4 ring-knote-primary/10"
+                  : darkMode
+                    ? "border-[#3a352b] hover:border-[#5b5242]"
+                    : "border-knote-border/50 hover:border-knote-border",
               )}
             >
               <div className="flex-1 w-full bg-white relative">
-                {/* Simplified page preview graphic */}
-                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,#ffffff_0,#f7f1e8_68%,#eee3d3_100%)]" />
-                <div className="absolute inset-x-2 top-4 h-0.5 bg-black/10 rounded-full" />
-                <div className="absolute inset-x-2 top-6 h-0.5 bg-black/10 rounded-full w-3/4" />
-                <div className="absolute inset-x-2 top-8 h-0.5 bg-black/10 rounded-full w-5/6" />
+                {page.backgroundImage ? (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: `url(${page.backgroundImage})` }}
+                  />
+                ) : (
+                  <>
+                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,#ffffff_0,#f7f1e8_68%,#eee3d3_100%)]" />
+                    <div className="absolute inset-x-2 top-4 h-0.5 bg-black/10 rounded-full" />
+                    <div className="absolute inset-x-2 top-6 h-0.5 bg-black/10 rounded-full w-3/4" />
+                    <div className="absolute inset-x-2 top-8 h-0.5 bg-black/10 rounded-full w-5/6" />
+                  </>
+                )}
               </div>
-              <div className="shrink-0 h-8 bg-black/5 border-t border-knote-border/30 flex items-center justify-center">
-                <span className="text-xs font-medium text-knote-text/60">
+              <div
+                className={`shrink-0 h-8 border-t flex items-center justify-center ${
+                  darkMode
+                    ? "border-[#3a352b] bg-[#151411]"
+                    : "border-knote-border/30 bg-black/5"
+                }`}
+              >
+                <span
+                  className={`text-xs font-medium ${
+                    darkMode ? "text-[#f4efe7]/55" : "text-knote-text/60"
+                  }`}
+                >
                   {index + 1}
                 </span>
               </div>
@@ -96,8 +133,13 @@ export function PageSidebar() {
 
             {pages.length > 1 && (
               <button
+                type="button"
                 onClick={(e) => handleDeletePage(e, page.id)}
-                className="absolute -top-2 -right-2 w-7 h-7 bg-white border border-knote-border text-knote-danger rounded-full shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-knote-danger hover:text-white transition-all scale-90 group-hover:scale-100"
+                className={`absolute -top-2 -right-2 w-7 h-7 border text-knote-danger rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-knote-danger hover:text-white transition-all scale-90 group-hover:scale-100 ${
+                  darkMode
+                    ? "border-[#40392d] bg-[#201e19]"
+                    : "border-knote-border bg-white"
+                }`}
                 title="Delete Page"
               >
                 <Trash2 size={12} />

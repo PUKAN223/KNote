@@ -26,7 +26,11 @@ import {
   LibraryEditDialog,
 } from "./library/LibraryDialogs";
 import { LibrarySidebar } from "./library/LibrarySidebar";
-import { getBreadcrumb, getFolderDepth, isDescendant } from "./library/utils";
+import {
+  getBreadcrumb,
+  getFolderTreeRows,
+  isDescendant,
+} from "./library/utils";
 
 type DialogMode = "notebook" | "folder" | "rename-notebook" | "delete-confirm";
 type ItemTarget =
@@ -43,6 +47,19 @@ type PressState = {
 
 const LIBRARY_FOLDER_STORAGE_KEY = "knote:library-current-folder";
 
+function parseStoredStringArray(value: string | null) {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function readSavedFolderId() {
   if (typeof window === "undefined") return null;
   const saved = window.sessionStorage.getItem(LIBRARY_FOLDER_STORAGE_KEY);
@@ -51,6 +68,37 @@ function readSavedFolderId() {
 
 function saveFolderId(folderId: string | null) {
   window.sessionStorage.setItem(LIBRARY_FOLDER_STORAGE_KEY, folderId ?? "root");
+}
+
+async function renderPdfPages(file: File) {
+  const pdfjs = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.mjs",
+    import.meta.url,
+  ).toString();
+
+  const data = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data }).promise;
+  const pages: Array<{ image: string; width: number; height: number }> = [];
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (!context) continue;
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvas, canvasContext: context, viewport }).promise;
+    pages.push({
+      image: canvas.toDataURL("image/png"),
+      width: viewport.width,
+      height: viewport.height,
+    });
+  }
+
+  return pages;
 }
 
 export function Library() {
@@ -88,6 +136,7 @@ export function Library() {
   const folderTransitionTimerRef = useRef<number | null>(null);
   const [favoriteNotebookIds, setFavoriteNotebookIds] = useState<string[]>([]);
   const [favoriteFolderIds, setFavoriteFolderIds] = useState<string[]>([]);
+  const [favoritesReady, setFavoritesReady] = useState(false);
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -102,6 +151,7 @@ export function Library() {
   });
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const pressRef = useRef<PressState | null>(null);
   const suppressClickRef = useRef(false);
 
@@ -120,17 +170,7 @@ export function Library() {
   );
   const isSearching = searchTerm.trim().length > 0;
 
-  const folderRows = useMemo(
-    () =>
-      allFolders
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((folder) => ({
-          ...folder,
-          depth: getFolderDepth(allFolders, folder),
-        })),
-    [allFolders],
-  );
+  const folderRows = useMemo(() => getFolderTreeRows(allFolders), [allFolders]);
 
   const filteredFolders = useMemo(() => {
     if (isSearching) {
@@ -181,31 +221,32 @@ export function Library() {
   const breadcrumb = getBreadcrumb(allFolders, activeFolderId);
 
   useLayoutEffect(() => {
-    const savedFavorites = window.localStorage.getItem("knote:favorites");
-    if (savedFavorites) {
-      setFavoriteNotebookIds(JSON.parse(savedFavorites));
-    }
-    const savedFolderFavorites = window.localStorage.getItem(
-      "knote:favorite-folders",
+    setFavoriteNotebookIds(
+      parseStoredStringArray(window.localStorage.getItem("knote:favorites")),
     );
-    if (savedFolderFavorites) {
-      setFavoriteFolderIds(JSON.parse(savedFolderFavorites));
-    }
+    setFavoriteFolderIds(
+      parseStoredStringArray(
+        window.localStorage.getItem("knote:favorite-folders"),
+      ),
+    );
+    setFavoritesReady(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!favoritesReady) return;
     window.localStorage.setItem(
       "knote:favorites",
       JSON.stringify(favoriteNotebookIds),
     );
-  }, [favoriteNotebookIds]);
+  }, [favoriteNotebookIds, favoritesReady]);
 
   useEffect(() => {
+    if (!favoritesReady) return;
     window.localStorage.setItem(
       "knote:favorite-folders",
       JSON.stringify(favoriteFolderIds),
     );
-  }, [favoriteFolderIds]);
+  }, [favoriteFolderIds, favoritesReady]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? "dark" : "light";
@@ -336,6 +377,7 @@ export function Library() {
         name,
         color: draftColor,
         folderId: activeFolderId,
+        kind: "notebook",
         createdAt: now,
         updatedAt: now,
       });
@@ -357,6 +399,7 @@ export function Library() {
       name: "Quick Note",
       color: NOTEBOOK_COLORS[0],
       folderId: activeFolderId,
+      kind: "notebook",
       createdAt: now,
       updatedAt: now,
     });
@@ -366,6 +409,41 @@ export function Library() {
       notebookId,
       order: 0,
       createdAt: now,
+    });
+    openNotebookRoute(notebookId);
+  };
+
+  const handleImportPdf = async (file: File) => {
+    if (file.type !== "application/pdf") return;
+
+    const notebookId = uuidv4();
+    const now = Date.now();
+    const name = file.name.replace(/\.pdf$/i, "") || "Imported PDF";
+    const pdfPages = await renderPdfPages(file);
+    if (pdfPages.length === 0) return;
+
+    await db.transaction("rw", db.notebooks, db.pages, async () => {
+      await db.notebooks.add({
+        id: notebookId,
+        name,
+        color: NOTEBOOK_COLORS[3],
+        folderId: activeFolderId,
+        kind: "pdf",
+        pdfFileName: file.name,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await db.pages.bulkAdd(
+        pdfPages.map((page, index) => ({
+          id: uuidv4(),
+          notebookId,
+          order: index,
+          width: page.width,
+          height: page.height,
+          backgroundImage: page.image,
+          createdAt: now,
+        })),
+      );
     });
     openNotebookRoute(notebookId);
   };
@@ -648,6 +726,7 @@ export function Library() {
         onCreateQuickNote={handleCreateQuickNote}
         onDeleteFolder={handleDeleteFolder}
         onDeleteNotebook={handleDeleteNotebook}
+        onImportPdf={() => pdfInputRef.current?.click()}
         onFolderColor={handleFolderColor}
         onFolderIcon={handleFolderIcon}
         onMoveFolder={handleMoveFolder}
@@ -670,6 +749,20 @@ export function Library() {
         shouldIgnoreTap={shouldIgnoreTap}
         sortMode={sortMode}
         onSortModeChange={setSortMode}
+      />
+
+      <input
+        ref={pdfInputRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) {
+            void handleImportPdf(file);
+          }
+        }}
       />
 
       <LibraryDragLayer
